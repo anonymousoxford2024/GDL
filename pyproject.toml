@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "linearized-attention-project"
+version = "0.1.0"
+description = ""
+authors = ["Your Name <you@example.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+torch = "^2.2.2"
+torch-geometric = "^2.5.2"
+scikit-learn = "^1.4.2"
+torch-sparse = "^0.6.18"
+
+[tool.poetry.dev-dependencies]
+black = "^24.4.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
