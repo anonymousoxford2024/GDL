@@ -30,8 +30,8 @@ class FullAttentionLayer(nn.Module):
         return x
 
     def attention(self, x):
-        keys = self.key_layer(x)
         queries = self.query_layer(x)
+        keys = self.key_layer(x)
         values = self.value_layer(x)
 
         attention_scores = torch.matmul(queries, keys.transpose(0, 1))

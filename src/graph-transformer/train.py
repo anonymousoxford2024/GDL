@@ -7,8 +7,8 @@ from torch_geometric.data.data import Data
 from torch_geometric.datasets import Planetoid
 
 from evaluation import compute_auroc
-from models.linformer_attention import LinformerGraphTransformer
 from models.full_attention import FullAttentionGraphTransformer
+from models.linformer_attention import LinformerGraphTransformer
 
 
 def train(
