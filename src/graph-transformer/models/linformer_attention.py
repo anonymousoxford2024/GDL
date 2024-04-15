@@ -1,15 +1,22 @@
 import torch
 import torch.nn.functional as F
 from torch import nn
+from torch_geometric.data import Data
 from torch_geometric.nn import LayerNorm
 
 
-def _project(x, projector):
+def _project(x: torch.Tensor, projector: nn.Module) -> torch.Tensor:
     return torch.transpose(projector(torch.transpose(x, 1, 0)), 1, 0)
 
 
 class LinformerAttentionLayer(nn.Module):
-    def __init__(self, input_dim, hidden_dim, projection_dim, n_nodes):
+    def __init__(
+        self,
+        input_dim: int,
+        hidden_dim: int,
+        projection_dim: int,
+        n_nodes: int,
+    ) -> None:
         super(LinformerAttentionLayer, self).__init__()
 
         self.key_layer = nn.Linear(input_dim, hidden_dim, bias=False)
@@ -30,7 +37,7 @@ class LinformerAttentionLayer(nn.Module):
         self.norm1 = LayerNorm(input_dim)
         self.norm2 = LayerNorm(input_dim)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         attn_output = self.attention(x)
         x = self.norm1(x + attn_output)
 
@@ -38,27 +45,33 @@ class LinformerAttentionLayer(nn.Module):
         x = self.norm2(x + ff_output)
         return x
 
-    def attention(self, x):
+    def attention(self, x: torch.Tensor) -> torch.Tensor:
         queries = self.query_layer(x)
         keys = self.key_layer(x)
         values = self.value_layer(x)
 
         # Project keys and values to lower dimensions
-        keys = _project(keys, self.key_projector)
-        values = _project(values, self.value_projector)
+        k_proj = _project(keys, self.key_projector)
+        v_proj = _project(values, self.value_projector)
 
-        attention_scores = torch.matmul(queries, keys.transpose(0, 1))
+        attention_scores = torch.matmul(queries, k_proj.transpose(0, 1))
         attention_scores = torch.softmax(attention_scores, dim=-1)
 
-        out = torch.matmul(attention_scores, values)
+        out = torch.matmul(attention_scores, v_proj)
         out = self.output_layer(out)
         return out
 
 
 class LinformerGraphTransformer(nn.Module):
     def __init__(
-        self, input_dim, hidden_dim, output_dim, num_layers, projection_dim, n_nodes
-    ):
+        self,
+        input_dim: int,
+        hidden_dim: int,
+        output_dim: int,
+        num_layers: int,
+        projection_dim: int,
+        n_nodes: int,
+    ) -> None:
         super(LinformerGraphTransformer, self).__init__()
         self.layers = nn.ModuleList(
             [
@@ -68,7 +81,7 @@ class LinformerGraphTransformer(nn.Module):
         )
         self.final_layer = nn.Linear(input_dim, output_dim)
 
-    def forward(self, data):
+    def forward(self, data: Data) -> torch.Tensor:
         x = data.x
         for layer in self.layers:
             x = layer(x)

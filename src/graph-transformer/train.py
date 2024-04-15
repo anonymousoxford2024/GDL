@@ -11,13 +11,14 @@ from evaluation import compute_auroc
 from models.full_attention import FullAttentionGraphTransformer
 from models.linformer_attention import LinformerGraphTransformer
 from models.performer_attention import PerformerGraphTransformer
+from utils import set_all_seeds
 
 
 def train(
     model: nn.Module,
     data: Data,
     optimizer: optim.Optimizer,
-    epochs: int = 40,
+    n_epochs: int = 40,
     patience: int = 5,
 ):
     train_mask = data.train_mask
@@ -27,7 +28,7 @@ def train(
     best_model = None
     epochs_no_improve = 0
 
-    for epoch in range(epochs):
+    for epoch in range(n_epochs):
         model.train()
         optimizer.zero_grad()
         out = model(data)
@@ -69,13 +70,7 @@ def evaluate(model: nn.Module, data: Data, mask: torch.Tensor) -> Tuple[float, f
     return loss, acc
 
 
-if __name__ == "__main__":
-    # # Load the dataset
-    # dataset = Reddit(root='/tmp/Reddit')
-    # data = dataset[0]
-    # print(data)
-
-    parser = argparse.ArgumentParser()
+def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--model_type",
         type=str,
@@ -91,12 +86,26 @@ if __name__ == "__main__":
         help="Dataset to train models on.",
     )
     args = parser.parse_args()
+    return args
+
+
+if __name__ == "__main__":
+    set_all_seeds(0)
+    # # Load the dataset
+    # dataset = Reddit(root='/tmp/Reddit')
+    # data = dataset[0]
+    # print(data)
+
+    parser = argparse.ArgumentParser()
+
+    args = parse_arguments()
     model_type = args.model_type
     dataset_name = args.dataset
 
     root = f"/tmp/{dataset_name}"
     dataset = Planetoid(root=root, name=dataset_name)
     data = dataset[0]
+    n_epochs = 200
 
     print(f"model_type = {model_type}")
     print(f"dataset = {dataset}")
@@ -105,46 +114,49 @@ if __name__ == "__main__":
     for hidden_dim in [256]:
         for lr in [1e-3]:
             for weight_decay in [0.0]:
-                # for _ in range(10):
-                print(
-                    f"\nhidden_dim = {hidden_dim}\t\tlr = {lr}\t\tweight_decay = {weight_decay}"
-                )
-
-                input_dim = dataset.num_node_features
-                output_dim = dataset.num_classes
-                num_layers = 1
-
-                if model_type == "full-attention":
-                    model = FullAttentionGraphTransformer(
-                        input_dim=input_dim,
-                        hidden_dim=hidden_dim,
-                        output_dim=output_dim,
-                        num_layers=num_layers,
-                    )
-                elif model_type == "linformer":
-                    # Example configuration and model initialization
-                    projection_dim = 64
-
-                    model = LinformerGraphTransformer(
-                        input_dim=input_dim,
-                        hidden_dim=hidden_dim,
-                        output_dim=output_dim,
-                        num_layers=num_layers,
-                        projection_dim=projection_dim,
-                        n_nodes=data.num_nodes,
-                    )
-                elif model_type == "performer":
-                    features_dim = 64
-                    model = PerformerGraphTransformer(
-                        input_dim=input_dim,
-                        hidden_dim=hidden_dim,
-                        output_dim=output_dim,
-                        num_layers=num_layers,
-                        features_dim=features_dim,
+                for feature_dim in [64]:
+                    # for _ in range(10):
+                    print(
+                        f"\nhidden_dim = {hidden_dim}\t\tlr = {lr}\t\tweight_decay = {weight_decay}"
                     )
 
-                optimizer = optim.Adam(
-                    model.parameters(), lr=lr, weight_decay=weight_decay
-                )
+                    input_dim = dataset.num_node_features
+                    output_dim = dataset.num_classes
+                    num_layers = 1
 
-                trained_model = train(model, data, optimizer, epochs=120)
+                    if model_type == "full-attention":
+                        model = FullAttentionGraphTransformer(
+                            input_dim=input_dim,
+                            hidden_dim=hidden_dim,
+                            output_dim=output_dim,
+                            num_layers=num_layers,
+                        )
+                    elif model_type == "linformer":
+                        # Example configuration and model initialization
+                        projection_dim = feature_dim
+
+                        model = LinformerGraphTransformer(
+                            input_dim=input_dim,
+                            hidden_dim=hidden_dim,
+                            output_dim=output_dim,
+                            num_layers=num_layers,
+                            projection_dim=projection_dim,
+                            n_nodes=data.num_nodes,
+                        )
+                    elif model_type == "performer":
+                        # features_dim = 256
+                        model = PerformerGraphTransformer(
+                            input_dim=input_dim,
+                            hidden_dim=hidden_dim,
+                            output_dim=output_dim,
+                            num_layers=num_layers,
+                            num_features=feature_dim,
+                        )
+
+                    optimizer = optim.Adam(
+                        model.parameters(), lr=lr, weight_decay=weight_decay
+                    )
+
+                    trained_model = train(
+                        model, data, optimizer, n_epochs=n_epochs, patience=10
+                    )

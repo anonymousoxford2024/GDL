@@ -5,7 +5,7 @@ from torch_geometric.nn import LayerNorm
 
 
 class FullAttentionLayer(nn.Module):
-    def __init__(self, input_dim, hidden_dim):
+    def __init__(self, input_dim: int, hidden_dim: int) -> None:
         super(FullAttentionLayer, self).__init__()
 
         self.key_layer = nn.Linear(input_dim, hidden_dim, bias=False)
@@ -21,7 +21,7 @@ class FullAttentionLayer(nn.Module):
         self.norm1 = LayerNorm(input_dim)
         self.norm2 = LayerNorm(input_dim)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         attn_output = self.attention(x)
         x = self.norm1(x + attn_output)
 
@@ -29,7 +29,7 @@ class FullAttentionLayer(nn.Module):
         x = self.norm2(x + ff_output)
         return x
 
-    def attention(self, x):
+    def attention(self, x: torch.Tensor) -> torch.Tensor:
         queries = self.query_layer(x)
         keys = self.key_layer(x)
         values = self.value_layer(x)
