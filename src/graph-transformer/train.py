@@ -1,17 +1,19 @@
 import argparse
-from typing import Tuple
+import copy
+import time
 
+import numpy as np
 import torch
 import torch.nn.functional as F
 from torch import nn, optim
 from torch_geometric.data.data import Data
 from torch_geometric.datasets import Planetoid
 
-from evaluation import compute_auroc
+from evaluation import compute_auroc, evaluate
 from models.full_attention import FullAttentionGraphTransformer
 from models.linformer_attention import LinformerGraphTransformer
 from models.performer_attention import PerformerGraphTransformer
-from utils import set_all_seeds
+from utils import set_all_seeds, memory_usage_psutil
 
 
 def train(
@@ -20,15 +22,25 @@ def train(
     optimizer: optim.Optimizer,
     n_epochs: int = 40,
     patience: int = 5,
+    verbose: bool = True,
 ):
     train_mask = data.train_mask
     val_mask = data.val_mask
 
     best_val_acc = -1.0
-    best_model = None
     epochs_no_improve = 0
+    best_model_state = None
+
+    time_measurements = []
+    memory_measurements = []
 
     for epoch in range(n_epochs):
+        start_time = time.time()
+        start_mem = memory_usage_psutil()
+
+        if torch.cuda.is_available():
+            torch.cuda.reset_max_memory_allocated()
+
         model.train()
         optimizer.zero_grad()
         out = model(data)
@@ -40,43 +52,49 @@ def train(
         train_acc = compute_auroc(out[train_mask], data.y[train_mask])
         val_loss, val_acc = evaluate(model, data, val_mask)
 
-        print(
-            f"Epoch: {epoch+1}, Loss: {loss.item():.4f}, Train Acc: {train_acc:.4f}, Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.4f}"
-        )
+        end_time = time.time()  # End time measurement
+        elapsed_time = end_time - start_time
+        time_measurements.append(elapsed_time)
+
+        end_mem = memory_usage_psutil()
+        mem_usage = end_mem - start_mem
+        memory_measurements.append(mem_usage)
+
+        if verbose:
+            print(
+                f"Epoch: {epoch+1}, Loss: {loss.item():.4f}, Train Acc: {train_acc:.4f}, Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.4f}"
+            )
 
         # Check for improvement
         if val_acc > best_val_acc:
             best_val_acc = val_acc
-            best_model = model
+            best_model_state = copy.deepcopy(model.state_dict())
+
             epochs_no_improve = 0
         else:
             epochs_no_improve += 1
 
         # Early stopping
         if epochs_no_improve >= patience:
-            print(f"Early stopping triggered after {epoch+1} epochs!")
+            if verbose:
+                print(f"Early stopping triggered after {epoch+1} epochs!")
             break
 
-    print(f"best_val_acc = {best_val_acc}")
-    return best_model if best_model is not None else model
+    time_mean = np.mean(time_measurements)
+    memory_mean = np.mean(memory_measurements)
 
-
-def evaluate(model: nn.Module, data: Data, mask: torch.Tensor) -> Tuple[float, float]:
-    model.eval()
-    with torch.no_grad():
-        logits = model(data)
-        loss = F.nll_loss(logits[mask], data.y[mask]).item()
-        acc = compute_auroc(logits[mask], data.y[mask])
-    return loss, acc
+    model.load_state_dict(best_model_state)
+    return {"model": model, "time_mean": time_mean, "memory_mean": memory_mean}
 
 
 def parse_arguments() -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
     parser.add_argument(
         "--model_type",
         type=str,
-        default="performer",
+        default="full-attention",
         choices=["full-attention", "linformer", "performer"],
-        help="Type of model to train ('full-attention' or 'linformer').",
+        help="Type of model to train ('full-attention', 'linformer', 'performer').",
     )
     parser.add_argument(
         "--dataset",
@@ -91,12 +109,6 @@ def parse_arguments() -> argparse.Namespace:
 
 if __name__ == "__main__":
     set_all_seeds(0)
-    # # Load the dataset
-    # dataset = Reddit(root='/tmp/Reddit')
-    # data = dataset[0]
-    # print(data)
-
-    parser = argparse.ArgumentParser()
 
     args = parse_arguments()
     model_type = args.model_type
@@ -111,8 +123,8 @@ if __name__ == "__main__":
     print(f"dataset = {dataset}")
     print(f"data.num_nodes = {data.num_nodes}")
 
-    for hidden_dim in [256]:
-        for lr in [1e-3]:
+    for hidden_dim in [256, 512, 1024]:
+        for lr in [1e-2, 1e-3, 1e-4]:
             for weight_decay in [0.0]:
                 for feature_dim in [64]:
                     # for _ in range(10):

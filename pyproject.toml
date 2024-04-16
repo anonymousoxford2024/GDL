@@ -10,6 +10,8 @@ torch = "^2.2.2"
 torch-geometric = "^2.5.2"
 scikit-learn = "^1.4.2"
 torch-sparse = "^0.6.18"
+psutil = "^5.9.8"
+matplotlib = "3.5.1"
 
 [tool.poetry.dev-dependencies]
 black = "^24.4.0"

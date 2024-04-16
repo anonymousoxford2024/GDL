@@ -1,6 +1,7 @@
 import random
 
 import numpy as np
+import psutil
 import torch
 
 
@@ -15,3 +16,9 @@ def set_all_seeds(seed=42):
 
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
+
+
+def memory_usage_psutil():
+    process = psutil.Process()
+    mem = process.memory_info().rss / float(2**20)
+    return mem

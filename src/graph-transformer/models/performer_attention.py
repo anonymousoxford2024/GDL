@@ -49,9 +49,18 @@ class PerformerAttentionLayer(nn.Module):
 
         q_prime = torch.matmul(queries, self.random_matrix)
         k_prime = torch.matmul(keys, self.random_matrix)
+        # Check for infinities and replace them with a large but finite number
+        q_prime[torch.isinf(q_prime)] = 1e10  # or another very high but finite value
+        k_prime[torch.isinf(k_prime)] = 1e10
+
+        # Then perform the max subtraction
+        max_q = torch.max(q_prime, dim=-1, keepdim=True)[0]
+        max_k = torch.max(k_prime, dim=-1, keepdim=True)[0]
+        q_prime -= max_q
+        k_prime -= max_k
 
         QK = torch.matmul(torch.exp(q_prime), torch.exp(k_prime).t())
-        attention_scores = QK / QK.sum(dim=-1, keepdim=True)
+        attention_scores = QK / (QK.sum(dim=-1, keepdim=True) + 1e-8)
 
         out = torch.matmul(attention_scores, values)
         out = self.output_layer(out)
