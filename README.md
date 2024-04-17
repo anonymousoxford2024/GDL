@@ -41,13 +41,17 @@ You're now ready to replicate the study's findings.
 
 Running the following commands will retrain the specified model on a dataset of 
 your choice.
+```
+python src/graph-transformer/run_train.py  --model-type {MODELTYPE} --dataset {DATASET}
+```
+
 
 Set the model using `--model-type {MODELTYPE}` to be one of 
-`["full-attention", "linformer", "performer"]`. 
+`["full-attention", "linformer", "performer"]`.  \
 It defaults to `full-attention"`.
 
 Set the dataset using `--dataset {DATASET}` to be one of 
-`["Citeseer", "Cora", "Pubmed"]`.
+`["Citeseer", "Cora", "Pubmed"]`.\
 It defaults to `Citeseer"`.
 
 
