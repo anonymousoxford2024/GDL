@@ -23,7 +23,7 @@ class LinformerAttentionLayer(nn.Module):
         self.query_layer = nn.Linear(input_dim, hidden_dim, bias=False)
         self.value_layer = nn.Linear(input_dim, hidden_dim, bias=False)
 
-        # Projection matrices for keys and values
+        # projection matrices for keys and values
         self.key_projector = nn.Linear(n_nodes, projection_dim, bias=False)
         self.value_projector = nn.Linear(n_nodes, projection_dim, bias=False)
 
@@ -50,7 +50,7 @@ class LinformerAttentionLayer(nn.Module):
         keys = self.key_layer(x)
         values = self.value_layer(x)
 
-        # Project keys and values to lower dimensions
+        # project keys and values to lower dimensions
         k_proj = _project(keys, self.key_projector)
         v_proj = _project(values, self.value_projector)
 

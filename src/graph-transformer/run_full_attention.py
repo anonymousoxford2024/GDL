@@ -1,5 +1,3 @@
-import argparse
-
 import numpy as np
 from torch import optim
 from torch_geometric.datasets import Planetoid
@@ -11,7 +9,6 @@ from utils import set_all_seeds
 if __name__ == "__main__":
     set_all_seeds(0)
 
-    parser = argparse.ArgumentParser()
     args = parse_arguments()
     dataset_name = args.dataset
 
@@ -22,7 +19,6 @@ if __name__ == "__main__":
     print(f"dataset = {dataset}")
 
     for hidden_dim in [512]:
-        # for feature_dim in [64, 128, 256, 512]:
         for lr in [1e-3]:
             for weight_decay in [0.0]:
                 print(
@@ -61,10 +57,7 @@ if __name__ == "__main__":
                     model = results["model"]
 
                     val_loss, val_acc = evaluate(model, data, data.val_mask)
-                    # print(f"val_acc = {val_acc}")
-
                     test_loss, test_acc = evaluate(model, data, data.test_mask)
-                    # print(f"test_acc = {test_acc}")
 
                     auroc_scores.append(test_acc)
                     time_measurements.append(results["time_mean"])

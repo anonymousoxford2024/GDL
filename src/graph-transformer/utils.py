@@ -1,3 +1,4 @@
+import argparse
 import random
 
 import numpy as np
@@ -22,3 +23,23 @@ def memory_usage_psutil():
     process = psutil.Process()
     mem = process.memory_info().rss / float(2**20)
     return mem
+
+
+def parse_arguments() -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--model_type",
+        type=str,
+        default="full-attention",
+        choices=["full-attention", "linformer", "performer"],
+        help="Type of model to train ('full-attention', 'linformer', 'performer').",
+    )
+    parser.add_argument(
+        "--dataset",
+        type=str,
+        default="Citeseer",
+        choices=["Citeseer", "Cora", "Pubmed"],
+        help="Dataset to train models on.",
+    )
+    args = parser.parse_args()
+    return args

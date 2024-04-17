@@ -1,17 +1,14 @@
-import argparse
-
 import numpy as np
 from torch import optim
 from torch_geometric.datasets import Planetoid
 
 from models.linformer_attention import LinformerGraphTransformer
-from train import train, evaluate, parse_arguments
-from utils import set_all_seeds
+from train import train, evaluate
+from utils import set_all_seeds, parse_arguments
 
 if __name__ == "__main__":
     set_all_seeds(0)
 
-    parser = argparse.ArgumentParser()
     args = parse_arguments()
     dataset_name = args.dataset
 
@@ -64,10 +61,7 @@ if __name__ == "__main__":
                         model = results["model"]
 
                         val_loss, val_acc = evaluate(model, data, data.val_mask)
-                        # print(f"val_acc = {val_acc}")
-
                         test_loss, test_acc = evaluate(model, data, data.test_mask)
-                        # print(f"test_acc = {test_acc}")
 
                         auroc_scores.append(test_acc)
                         time_measurements.append(results["time_mean"])

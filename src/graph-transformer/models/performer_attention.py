@@ -31,7 +31,7 @@ class PerformerAttentionLayer(nn.Module):
         self.norm1 = LayerNorm(input_dim)
         self.norm2 = LayerNorm(input_dim)
 
-        # Random feature generation for FAVOR+
+        # random feature generation for FAVOR+
         self.register_buffer("random_matrix", torch.randn(hidden_dim, num_features))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -49,11 +49,10 @@ class PerformerAttentionLayer(nn.Module):
 
         q_prime = torch.matmul(queries, self.random_matrix)
         k_prime = torch.matmul(keys, self.random_matrix)
-        # Check for infinities and replace them with a large but finite number
-        q_prime[torch.isinf(q_prime)] = 1e10  # or another very high but finite value
+
+        q_prime[torch.isinf(q_prime)] = 1e10
         k_prime[torch.isinf(k_prime)] = 1e10
 
-        # Then perform the max subtraction
         max_q = torch.max(q_prime, dim=-1, keepdim=True)[0]
         max_k = torch.max(k_prime, dim=-1, keepdim=True)[0]
         q_prime -= max_q

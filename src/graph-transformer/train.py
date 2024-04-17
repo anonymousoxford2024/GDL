@@ -1,4 +1,3 @@
-import argparse
 import copy
 import time
 
@@ -13,7 +12,7 @@ from evaluation import compute_auroc, evaluate
 from models.full_attention import FullAttentionGraphTransformer
 from models.linformer_attention import LinformerGraphTransformer
 from models.performer_attention import PerformerGraphTransformer
-from utils import set_all_seeds, memory_usage_psutil
+from utils import set_all_seeds, memory_usage_psutil, parse_arguments
 
 
 def train(
@@ -48,11 +47,10 @@ def train(
         loss.backward()
         optimizer.step()
 
-        # Compute the AUROC for train and validation sets
         train_acc = compute_auroc(out[train_mask], data.y[train_mask])
         val_loss, val_acc = evaluate(model, data, val_mask)
 
-        end_time = time.time()  # End time measurement
+        end_time = time.time()
         elapsed_time = end_time - start_time
         time_measurements.append(elapsed_time)
 
@@ -65,7 +63,7 @@ def train(
                 f"Epoch: {epoch+1}, Loss: {loss.item():.4f}, Train Acc: {train_acc:.4f}, Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.4f}"
             )
 
-        # Check for improvement
+        # check for improvement
         if val_acc > best_val_acc:
             best_val_acc = val_acc
             best_model_state = copy.deepcopy(model.state_dict())
@@ -74,7 +72,7 @@ def train(
         else:
             epochs_no_improve += 1
 
-        # Early stopping
+        # early stopping
         if epochs_no_improve >= patience:
             if verbose:
                 print(f"Early stopping triggered after {epoch+1} epochs!")
@@ -85,26 +83,6 @@ def train(
 
     model.load_state_dict(best_model_state)
     return {"model": model, "time_mean": time_mean, "memory_mean": memory_mean}
-
-
-def parse_arguments() -> argparse.Namespace:
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--model_type",
-        type=str,
-        default="full-attention",
-        choices=["full-attention", "linformer", "performer"],
-        help="Type of model to train ('full-attention', 'linformer', 'performer').",
-    )
-    parser.add_argument(
-        "--dataset",
-        type=str,
-        default="Citeseer",
-        choices=["Citeseer", "Cora", "Pubmed"],
-        help="Dataset to train models on.",
-    )
-    args = parser.parse_args()
-    return args
 
 
 if __name__ == "__main__":
@@ -123,52 +101,53 @@ if __name__ == "__main__":
     print(f"dataset = {dataset}")
     print(f"data.num_nodes = {data.num_nodes}")
 
-    for hidden_dim in [256, 512, 1024]:
-        for lr in [1e-2, 1e-3, 1e-4]:
+    feat_dims = [64, 128, 256]
+    if model_type == "full-attention":
+        feat_dims = [None]
+        
+    for hidden_dim in [512]:
+        for lr in [1e-3]:
             for weight_decay in [0.0]:
-                for feature_dim in [64]:
-                    # for _ in range(10):
-                    print(
-                        f"\nhidden_dim = {hidden_dim}\t\tlr = {lr}\t\tweight_decay = {weight_decay}"
-                    )
-
-                    input_dim = dataset.num_node_features
-                    output_dim = dataset.num_classes
-                    num_layers = 1
-
-                    if model_type == "full-attention":
-                        model = FullAttentionGraphTransformer(
-                            input_dim=input_dim,
-                            hidden_dim=hidden_dim,
-                            output_dim=output_dim,
-                            num_layers=num_layers,
-                        )
-                    elif model_type == "linformer":
-                        # Example configuration and model initialization
-                        projection_dim = feature_dim
-
-                        model = LinformerGraphTransformer(
-                            input_dim=input_dim,
-                            hidden_dim=hidden_dim,
-                            output_dim=output_dim,
-                            num_layers=num_layers,
-                            projection_dim=projection_dim,
-                            n_nodes=data.num_nodes,
-                        )
-                    elif model_type == "performer":
-                        # features_dim = 256
-                        model = PerformerGraphTransformer(
-                            input_dim=input_dim,
-                            hidden_dim=hidden_dim,
-                            output_dim=output_dim,
-                            num_layers=num_layers,
-                            num_features=feature_dim,
+                for feature_dim in feat_dims:
+                    for _ in range(10):
+                        print(
+                            f"\nhidden_dim = {hidden_dim}\t\tlr = {lr}\t\tweight_decay = {weight_decay}"
                         )
 
-                    optimizer = optim.Adam(
-                        model.parameters(), lr=lr, weight_decay=weight_decay
-                    )
+                        input_dim = dataset.num_node_features
+                        output_dim = dataset.num_classes
+                        num_layers = 1
 
-                    trained_model = train(
-                        model, data, optimizer, n_epochs=n_epochs, patience=10
-                    )
+                        if model_type == "full-attention":
+                            model = FullAttentionGraphTransformer(
+                                input_dim=input_dim,
+                                hidden_dim=hidden_dim,
+                                output_dim=output_dim,
+                                num_layers=num_layers,
+                            )
+                        elif model_type == "linformer":
+                            projection_dim = feature_dim
+                            model = LinformerGraphTransformer(
+                                input_dim=input_dim,
+                                hidden_dim=hidden_dim,
+                                output_dim=output_dim,
+                                num_layers=num_layers,
+                                projection_dim=projection_dim,
+                                n_nodes=data.num_nodes,
+                            )
+                        elif model_type == "performer":
+                            model = PerformerGraphTransformer(
+                                input_dim=input_dim,
+                                hidden_dim=hidden_dim,
+                                output_dim=output_dim,
+                                num_layers=num_layers,
+                                num_features=feature_dim,
+                            )
+
+                        optimizer = optim.Adam(
+                            model.parameters(), lr=lr, weight_decay=weight_decay
+                        )
+
+                        trained_model = train(
+                            model, data, optimizer, n_epochs=n_epochs, patience=10
+                        )

@@ -4,7 +4,9 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 
-PROJECT_DIR = Path(__file__).parent.parent
+from utils import parse_arguments
+
+PROJECT_DIR = Path(__file__).parent.parent.parent
 
 
 def extract_model_data(json_data):
@@ -15,22 +17,18 @@ def extract_model_data(json_data):
     times = []
     memory = []
 
-    # Iterate over the keys in the 'auroc' part of the JSON data
     for model_name, auroc_data in json_data["auroc"].items():
         if isinstance(auroc_data, dict):
-            # This model has multiple dimensions
             for dimension, auroc_value in auroc_data.items():
                 models.append(model_name)
                 dimensions.append(dimension)
                 aurocs.append(auroc_value)
-                # Retrieve the corresponding error using the same keys
                 errors.append(json_data["error"][model_name][dimension])
                 times.append(json_data["time_mean"][model_name][dimension])
                 memory.append(json_data["memory_mean"][model_name][dimension])
         else:
-            # This model does not have dimensions specified
             models.append(model_name)
-            dimensions.append("-")  # Using '-' to indicate no dimension
+            dimensions.append("-")
             aurocs.append(auroc_data)
             errors.append(json_data["error"][model_name])
             times.append(json_data["time_mean"][model_name])
@@ -96,7 +94,6 @@ def plot_auroc_performances(models, dims, aurocs, errors, dataset):
 
 
 def plot_memory_and_time_consumptions(models, dims, times, memory, dataset):
-    # Mapping colors to models
     unique_colors = {
         "Full-Attention": "#660000",
         "Linformer": "#ff0000",
@@ -128,7 +125,6 @@ def plot_memory_and_time_consumptions(models, dims, times, memory, dataset):
         [f"{model}\n{dim}" for model, dim in zip(models, dims)], fontsize=12
     )
 
-    # Adjust the y-axis limits based on your memory data
     if dataset == "Citeseer":
         ax1.set_ylim([50, 110])
     elif dataset == "Cora":
@@ -136,7 +132,7 @@ def plot_memory_and_time_consumptions(models, dims, times, memory, dataset):
     elif dataset == "Pubmed":
         ax1.set_ylim([40, 140])
 
-    # Creating a secondary y-axis for time data
+    # secondary y-axis for time data
     ax2 = ax1.twinx()
     ax2.set_ylabel("Time (seconds)", color="blue", fontsize=12)
     ax2.plot(index, times, "x", color="blue")
@@ -147,7 +143,6 @@ def plot_memory_and_time_consumptions(models, dims, times, memory, dataset):
 
     ax1.grid(True, which="both", linestyle="--", linewidth=0.5, color="gray")
 
-    # Handling the legend to avoid duplicate labels
     handles1, labels1 = ax1.get_legend_handles_labels()
     handles2, labels2 = ax2.get_legend_handles_labels()
     unique_handles = handles1 + handles2
@@ -156,17 +151,18 @@ def plot_memory_and_time_consumptions(models, dims, times, memory, dataset):
 
     plt.tight_layout()
 
-    # Update the file name to reflect that this is about memory usage
     plt.savefig(PROJECT_DIR / "plots" / f"memory_usage_comparison_{dataset}.png")
     plt.show()
 
 
 if __name__ == "__main__":
-    dataset_ = "Cora" ""
-    with open(str(PROJECT_DIR / f"plotting_{dataset_.lower()}.json"), "r") as file:
+    args = parse_arguments()
+    dataset = args.dataset
+
+    with open(str(PROJECT_DIR / f"plots/plotting_{dataset.lower()}.json"), "r") as file:
         data = json.load(file)
 
-    models_, dims_, aurocs_, errors_, times_, memory_ = extract_model_data(data)
+    models, dims, aurocs, errors, times, memory = extract_model_data(data)
 
-    plot_auroc_performances(models_, dims_, aurocs_, errors_, dataset_)
-    plot_memory_and_time_consumptions(models_, dims_, times_, memory_, dataset_)
+    plot_auroc_performances(models, dims, aurocs, errors, dataset)
+    plot_memory_and_time_consumptions(models, dims, times, memory, dataset)
